@@ -1,4 +1,5 @@
 """Functions for scoring frame-level diarization output."""
+
 # TODO: Module is too long. Refactor.
 from __future__ import absolute_import
 from __future__ import division
@@ -18,8 +19,15 @@ from .rttm import write_rttm
 from .uem import gen_uem, write_uem
 from .utils import clip, xor
 
-__all__ = ['bcubed', 'conditional_entropy', 'contingency_matrix', 'der',
-           'goodman_kruskal_tau', 'jer', 'mutual_information']
+__all__ = [
+    "bcubed",
+    "conditional_entropy",
+    "contingency_matrix",
+    "der",
+    "goodman_kruskal_tau",
+    "jer",
+    "mutual_information",
+]
 
 
 EPS = np.finfo(float).eps
@@ -44,27 +52,28 @@ def contingency_matrix(ref_labels, sys_labels):
     """
     if ref_labels.ndim != sys_labels.ndim:
         raise ValueError(
-            'ref_labels and sys_labels should either both be 1D arrays of '
-            'labels or both be 2D arrays of one-hot encoded labels: shapes '
-            'are %r, %r' % (ref_labels.shape, sys_labels.shape))
+            "ref_labels and sys_labels should either both be 1D arrays of "
+            "labels or both be 2D arrays of one-hot encoded labels: shapes "
+            "are %r, %r" % (ref_labels.shape, sys_labels.shape)
+        )
     if ref_labels.shape[0] != sys_labels.shape[0]:
         raise ValueError(
-            'ref_labels and sys_labels must have same size: received %d '
-            'and %d' % (ref_labels.shape[0], sys_labels.shape[0]))
+            "ref_labels and sys_labels must have same size: received %d "
+            "and %d" % (ref_labels.shape[0], sys_labels.shape[0])
+        )
     if ref_labels.ndim == 1:
-        ref_classes, ref_class_inds = np.unique(
-            ref_labels, return_inverse=True)
-        sys_classes, sys_class_inds = np.unique(
-            sys_labels, return_inverse=True)
+        ref_classes, ref_class_inds = np.unique(ref_labels, return_inverse=True)
+        sys_classes, sys_class_inds = np.unique(sys_labels, return_inverse=True)
         n_frames = ref_labels.size
         cm = coo_matrix(
             (np.ones(n_frames), (ref_class_inds, sys_class_inds)),
             shape=(ref_classes.size, sys_classes.size),
-            dtype=np.int)
+            dtype=np.int64,
+        )
         cm = cm.toarray()
     else:
-        ref_labels = ref_labels.astype('int64', copy=False)
-        sys_labels = sys_labels.astype('int64', copy=False)
+        ref_labels = ref_labels.astype("int64", copy=False)
+        sys_labels = sys_labels.astype("int64", copy=False)
         cm = ref_labels.T.dot(sys_labels)
         if issparse(cm):
             cm = cm.toarray()
@@ -114,11 +123,11 @@ def bcubed(ref_labels, sys_labels, cm=None):
     """
     if cm is None:
         cm = contingency_matrix(ref_labels, sys_labels)
-    cm = cm.astype('float64')
+    cm = cm.astype("float64")
     cm_norm = cm / cm.sum()
     precision = np.sum(cm_norm * (cm / cm.sum(axis=0)))
     recall = np.sum(cm_norm * (cm / np.expand_dims(cm.sum(axis=1), 1)))
-    f1 = 2*(precision*recall)/(precision + recall)
+    f1 = 2 * (precision * recall) / (precision + recall)
     return precision, recall, f1
 
 
@@ -161,7 +170,7 @@ def goodman_kruskal_tau(ref_labels, sys_labels, cm=None):
     """
     if cm is None:
         cm = contingency_matrix(ref_labels, sys_labels)
-    cm = cm.astype('float64')
+    cm = cm.astype("float64")
     cm = cm / cm.sum()
     ref_marginals = cm.sum(axis=1)
     sys_marginals = cm.sum(axis=0)
@@ -171,7 +180,7 @@ def goodman_kruskal_tau(ref_labels, sys_labels, cm=None):
     if n_sys_classes == 1:
         # Special case: only single class in system labeling, so any
         #               reference labeling is perfectly predictive.
-        tau_ref_sys = 1.
+        tau_ref_sys = 1.0
     else:
         vy = 1 - np.sum(sys_marginals**2)
         xy_term = np.sum(cm**2, axis=1)
@@ -182,7 +191,7 @@ def goodman_kruskal_tau(ref_labels, sys_labels, cm=None):
     if n_ref_classes == 1:
         # Special case: only single class in reference labeling, so any
         #               system labeling is perfectly predictive.
-        tau_sys_ref = 1.
+        tau_sys_ref = 1.0
     else:
         vx = 1 - np.sum(ref_marginals**2)
         yx_term = np.sum(cm**2, axis=0)
@@ -233,16 +242,16 @@ def conditional_entropy(ref_labels, sys_labels, cm=None, nats=False):
     sys_marginals = cm.sum(axis=0)
     N = cm.sum()
     ref_inds, sys_inds = np.nonzero(cm)
-    vals = cm[ref_inds, sys_inds] # Non-zero values of contingency matrix.
-    sys_marginals = sys_marginals[sys_inds] # Corresponding marginals.
-    sigma = vals/N * (log(sys_marginals) - log(vals))
+    vals = cm[ref_inds, sys_inds]  # Non-zero values of contingency matrix.
+    sys_marginals = sys_marginals[sys_inds]  # Corresponding marginals.
+    sigma = vals / N * (log(sys_marginals) - log(vals))
     return sigma.sum()
 
 
-VALID_NORM_METHODS = set(['min', 'sum', 'sqrt', 'max'])
+VALID_NORM_METHODS = set(["min", "sum", "sqrt", "max"])
 
-def mutual_information(ref_labels, sys_labels, cm=None, nats=False,
-                       norm_method='sqrt'):
+
+def mutual_information(ref_labels, sys_labels, cm=None, nats=False, norm_method="sqrt"):
     """Return mutual information between ``ref_labels`` and ``sys_labels``.
 
     The mutual information ``I(ref, sys)`` quantifies how much information is
@@ -325,40 +334,41 @@ def mutual_information(ref_labels, sys_labels, cm=None, nats=False,
     ref_marginals = cm.sum(axis=1)
     sys_marginals = cm.sum(axis=0)
     ref_inds, sys_inds = np.nonzero(cm)
-    vals = cm[ref_inds, sys_inds] # Non-zero values of contingency matrix.
-    outer = ref_marginals[ref_inds]*sys_marginals[sys_inds]
-    sigma = (vals/N) * (
-        log(vals) - log(outer) + log(N))
+    vals = cm[ref_inds, sys_inds]  # Non-zero values of contingency matrix.
+    outer = ref_marginals[ref_inds] * sys_marginals[sys_inds]
+    sigma = (vals / N) * (log(vals) - log(outer) + log(N))
     mi = sigma.sum()
-    mi = max(mi, 0.)
+    mi = max(mi, 0.0)
 
     # Normalized mutual information.
     def h(p):
         p = p[p > 0]
-        return max(-np.sum(p*log(p)), 0)
+        return max(-np.sum(p * log(p)), 0)
+
     h_ref = h(ref_marginals / N)
     h_sys = h(sys_marginals / N)
-    if norm_method == 'max':
+    if norm_method == "max":
         denom = max(h_ref, h_sys)
-    elif norm_method == 'sum':
-        denom = 0.5*(h_ref + h_sys)
-    elif norm_method == 'sqrt':
-        denom = np.sqrt(h_ref*h_sys)
-    elif norm_method == 'min':
+    elif norm_method == "sum":
+        denom = 0.5 * (h_ref + h_sys)
+    elif norm_method == "sqrt":
+        denom = np.sqrt(h_ref * h_sys)
+    elif norm_method == "min":
         denom = min(h_ref, h_sys)
     nmi = mi / denom
-    nmi = clip(nmi, 0., 1.)
+    nmi = clip(nmi, 0.0, 1.0)
 
     return mi, nmi
 
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
-MDEVAL_BIN = os.path.join(SCRIPT_DIR, 'md-eval-22.pl')
-FILE_REO = re.compile(r'(?<=Speaker Diarization for).+(?=\*\*\*)')
-SCORED_SPEAKER_REO = re.compile(r'(?<=SCORED SPEAKER TIME =)[\d.]+')
-MISS_SPEAKER_REO = re.compile(r'(?<=MISSED SPEAKER TIME =)[\d.]+')
-FA_SPEAKER_REO = re.compile(r'(?<=FALARM SPEAKER TIME =)[\d.]+')
-ERROR_SPEAKER_REO = re.compile(r'(?<=SPEAKER ERROR TIME =)[\d.]+')
+MDEVAL_BIN = os.path.join(SCRIPT_DIR, "md-eval-22.pl")
+FILE_REO = re.compile(r"(?<=Speaker Diarization for).+(?=\*\*\*)")
+SCORED_SPEAKER_REO = re.compile(r"(?<=SCORED SPEAKER TIME =)[\d.]+")
+MISS_SPEAKER_REO = re.compile(r"(?<=MISSED SPEAKER TIME =)[\d.]+")
+FA_SPEAKER_REO = re.compile(r"(?<=FALARM SPEAKER TIME =)[\d.]+")
+ERROR_SPEAKER_REO = re.compile(r"(?<=SPEAKER ERROR TIME =)[\d.]+")
+
 
 # TODO: Working with md-eval is a PITA, even with modifications to the
 #       reporting. Suggest looking into moving over to pyannote's
@@ -436,28 +446,33 @@ def der(ref_turns, sys_turns, collar=0.0, ignore_overlaps=False, uem=None):
     tmp_dir = tempfile.mkdtemp()
 
     # Write RTTMs.
-    ref_rttm_fn = os.path.join(tmp_dir, 'ref.rttm')
+    ref_rttm_fn = os.path.join(tmp_dir, "ref.rttm")
     write_rttm(ref_rttm_fn, ref_turns)
-    sys_rttm_fn = os.path.join(tmp_dir, 'sys.rttm')
+    sys_rttm_fn = os.path.join(tmp_dir, "sys.rttm")
     write_rttm(sys_rttm_fn, sys_turns)
 
     # Write UEM.
     if uem is None:
         uem = gen_uem(ref_turns, sys_turns)
-    uemf = os.path.join(tmp_dir, 'all.uem')
+    uemf = os.path.join(tmp_dir, "all.uem")
     write_uem(uemf, uem)
 
     # Actually score.
     try:
-        cmd = [MDEVAL_BIN,
-               '-af',
-               '-r', ref_rttm_fn,
-               '-s', sys_rttm_fn,
-               '-c', str(collar),
-               '-u', uemf,
-              ]
+        cmd = [
+            MDEVAL_BIN,
+            "-af",
+            "-r",
+            ref_rttm_fn,
+            "-s",
+            sys_rttm_fn,
+            "-c",
+            str(collar),
+            "-u",
+            uemf,
+        ]
         if ignore_overlaps:
-            cmd.append('-1')
+            cmd.append("-1")
         stdout = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         stdout = e.output
@@ -465,24 +480,25 @@ def der(ref_turns, sys_turns, collar=0.0, ignore_overlaps=False, uem=None):
         shutil.rmtree(tmp_dir)
 
     # Parse md-eval output to extract by-file and total scores.
-    stdout = stdout.decode('utf-8')
+    stdout = stdout.decode("utf-8")
     file_ids = [m.strip() for m in FILE_REO.findall(stdout)]
-    file_ids = [file_id[2:] if file_id.startswith('f=') else file_id
-                for file_id in file_ids]
+    file_ids = [
+        file_id[2:] if file_id.startswith("f=") else file_id for file_id in file_ids
+    ]
     scored_speaker_times = np.array(
-        [float(m) for m in SCORED_SPEAKER_REO.findall(stdout)])
-    miss_speaker_times = np.array(
-        [float(m) for m in MISS_SPEAKER_REO.findall(stdout)])
-    fa_speaker_times = np.array(
-        [float(m) for m in FA_SPEAKER_REO.findall(stdout)])
+        [float(m) for m in SCORED_SPEAKER_REO.findall(stdout)]
+    )
+    miss_speaker_times = np.array([float(m) for m in MISS_SPEAKER_REO.findall(stdout)])
+    fa_speaker_times = np.array([float(m) for m in FA_SPEAKER_REO.findall(stdout)])
     error_speaker_times = np.array(
-        [float(m) for m in ERROR_SPEAKER_REO.findall(stdout)])
-    with np.errstate(invalid='ignore', divide='ignore'):
+        [float(m) for m in ERROR_SPEAKER_REO.findall(stdout)]
+    )
+    with np.errstate(invalid="ignore", divide="ignore"):
         error_times = miss_speaker_times + fa_speaker_times + error_speaker_times
         ders = error_times / scored_speaker_times
-    ders[np.isnan(ders)] = 0 # Numerator and denominator both 0.
-    ders[np.isinf(ders)] = 1 # Numerator > 0, but denominator = 0.
-    ders *= 100. # Convert to percent.
+    ders[np.isnan(ders)] = 0  # Numerator and denominator both 0.
+    ders[np.isinf(ders)] = 1  # Numerator > 0, but denominator = 0.
+    ders *= 100.0  # Convert to percent.
 
     # Reconcile with UEM, keeping in mind that in the edge case where no
     # reference turns are observed for a file, md-eval doesn't report results
@@ -496,11 +512,10 @@ def der(ref_turns, sys_turns, collar=0.0, ignore_overlaps=False, uem=None):
             # Check for any system turns for that file, which should be FAs,
             # assuming that the turns have been cropped to the UEM scoring
             # regions.
-            n_sys_turns = len(
-                [turn for turn in sys_turns if turn.file_id == file_id])
-            der = 100. if n_sys_turns else 0.0
+            n_sys_turns = len([turn for turn in sys_turns if turn.file_id == file_id])
+            der = 100.0 if n_sys_turns else 0.0
         file_to_der[file_id] = der
-    global_der = file_to_der_base['ALL']
+    global_der = file_to_der_base["ALL"]
 
     return file_to_der, global_der
 
@@ -577,8 +592,7 @@ def jer(file_to_ref_durs, file_to_sys_durs, file_to_cm, min_ref_dur=0):
     sys_dur_fids = set(file_to_sys_durs.keys())
     cm_fids = set(file_to_cm.keys())
     if not ref_dur_fids == sys_dur_fids == cm_fids:
-        raise ValueError(
-            'All passed dicts must have same keys.')
+        raise ValueError("All passed dicts must have same keys.")
     file_ids = ref_dur_fids
     file_to_jer = {}
     all_speaker_jers = []
@@ -591,7 +605,7 @@ def jer(file_to_ref_durs, file_to_sys_durs, file_to_cm, min_ref_dur=0):
         cm = file_to_cm[file_id]
         ref_keep = ref_durs >= min_ref_dur
         ref_durs = ref_durs[ref_keep]
-        cm = cm[ref_keep, ]
+        cm = cm[ref_keep,]
         n_ref_speakers = ref_durs.size
         n_sys_speakers = sys_durs.size
         n_ref_speakers_global += n_ref_speakers
@@ -606,7 +620,7 @@ def jer(file_to_ref_durs, file_to_sys_durs, file_to_cm, min_ref_dur=0):
         elif n_ref_speakers > 0 and n_sys_speakers == 0:
             # Case 2: no system speech.
             file_to_jer[file_id] = 100.0
-            all_speaker_jers.extend([100.]*n_ref_speakers)
+            all_speaker_jers.extend([100.0] * n_ref_speakers)
             continue
         elif n_ref_speakers == 0 and n_sys_speakers == 0:
             # Case 3: no reference or system speech
@@ -623,22 +637,20 @@ def jer(file_to_ref_durs, file_to_sys_durs, file_to_cm, min_ref_dur=0):
         # Find dominant mapping by Hungarian algorithm (scipy >= 0.17) and compute
         # JER.
         ref_speaker_inds, sys_speaker_inds = linear_sum_assignment(jer_speaker)
-        jers = np.ones(n_ref_speakers, dtype='float64')
-        for ref_speaker_ind, sys_speaker_ind in zip(
-                ref_speaker_inds, sys_speaker_inds):
-            jers[ref_speaker_ind] = jer_speaker[ref_speaker_ind,
-                                                sys_speaker_ind]
-        jers *= 100.
+        jers = np.ones(n_ref_speakers, dtype="float64")
+        for ref_speaker_ind, sys_speaker_ind in zip(ref_speaker_inds, sys_speaker_inds):
+            jers[ref_speaker_ind] = jer_speaker[ref_speaker_ind, sys_speaker_ind]
+        jers *= 100.0
         file_to_jer[file_id] = jers.mean()
         all_speaker_jers.extend(jers)
 
     # Determine global JER.
     if n_ref_speakers_global == 0 and n_sys_speakers_global > 0:
         # Case 1: no reference speech on ANY file.
-        global_jer = 100.
+        global_jer = 100.0
     elif n_ref_speakers_global > 0 and n_sys_speakers_global == 0:
         # Case 2: no system speech on ANY file.
-        global_jer = 100.
+        global_jer = 100.0
     elif n_ref_speakers_global == n_sys_speakers_global == 0:
         # Case 3: no reference OR system speech on ANY file.
         global_jer = 0.0
